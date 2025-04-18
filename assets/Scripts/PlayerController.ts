@@ -20,6 +20,12 @@ const { ccclass, property } = _decorator;
 @ccclass("PlayerController")
 export class PlayerController extends Component {
     /**
+     * @description 身体动画
+     */
+    @property({ type: Animation })
+    public BodyAnim: Animation | null = null;
+
+    /**
      * @description 是否接收到跳跃指令
      */
     private _startJump: boolean = false;
@@ -104,6 +110,18 @@ export class PlayerController extends Component {
 
         // 目标位置 = 当前位置 + 步长
         Vec3.add(this._targetPos, this._curPos, new Vec3(this._jumpStep, 0, 0));
+
+        // 播放动画
+        if (this.BodyAnim) {
+            if (step === 1) {
+                // 调用 BodyAnim 的 play 方法，播放名为 "oneStep" 的动画
+                this.BodyAnim.play("oneStep");
+            } else if (step === 2) {
+                // 否则如果 step 等于 2
+                // 调用 BodyAnim 的 play 方法，播放名为 "twoStep" 的动画
+                this.BodyAnim.play("twoStep");
+            }
+        }
     }
 
     /**
