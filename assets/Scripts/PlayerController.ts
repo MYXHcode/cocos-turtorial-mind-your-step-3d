@@ -65,8 +65,44 @@ export class PlayerController extends Component {
      */
     private _targetPos: Vec3 = new Vec3();
 
+    /**
+     * @description 当前移动的索引
+     */
+    private _curMoveIndex: number = 0;
+
     start() {
-        input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+        // input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+    }
+
+    /**
+     * @description 设置输入是否激活
+     * @param active 是否激活
+     * @param inputType 输入类型
+     * @returns void
+     */
+    setInputActive(active: boolean) {
+        if (active) {
+            // 添加鼠标事件监听
+            input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+        } else {
+            // 移除事件监听
+            input.off(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+        }
+    }
+
+    /**
+     * @description 重置
+     * @returns void
+     */
+    reset() {
+        // 重置当前移动的索引
+        this._curMoveIndex = 0;
+
+        // 获取当前的位置
+        this.node.getPosition(this._curPos);
+
+        // 重置目标位置
+        this._targetPos.set(0, 0, 0);
     }
 
     /**
@@ -102,7 +138,22 @@ export class PlayerController extends Component {
         // 重置下跳跃的时间
         this._curJumpTime = 0;
 
-        // 计算跳跃的速度
+        // 根据步数选择动画
+        const clipName = step === 1 ? "oneStep" : "twoStep";
+
+        // 检查当前对象的 BodyAnim 属性是否存在
+        if (!this.BodyAnim) {
+            // 如果 BodyAnim 不存在，则直接返回，不执行后续代码
+            return;
+        }
+
+        // 获取动画状态
+        const state = this.BodyAnim.getState(clipName);
+
+        // 获取动画的时间
+        this._jumpTime = state.duration;
+
+        // 计算跳跃的速度，根据时间计算出速度
         this._curJumpSpeed = this._jumpStep / this._jumpTime;
 
         // 获取角色当前的位置
@@ -122,6 +173,18 @@ export class PlayerController extends Component {
                 this.BodyAnim.play("twoStep");
             }
         }
+
+        // 更新当前移动的索引
+        this._curMoveIndex += step;
+    }
+
+    /**
+     * @description 跳跃结束事件
+     * @returns void
+     */
+    onOnceJumpEnd() {
+        // 触发跳跃结束事件
+        this.node.emit("JumpEnd", this._curMoveIndex);
     }
 
     /**
@@ -141,6 +204,9 @@ export class PlayerController extends Component {
 
                 // 标记跳跃结束
                 this._startJump = false;
+
+                // 调用跳跃结束事件
+                this.onOnceJumpEnd();
             } else {
                 // 跳跃中
                 // 获取当前的位置

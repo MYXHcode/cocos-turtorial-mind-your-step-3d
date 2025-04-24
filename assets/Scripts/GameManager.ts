@@ -6,7 +6,16 @@
  * @description 游戏管理器
  */
 
-import { _decorator, Component, Prefab, instantiate, Node } from "cc";
+import {
+    _decorator,
+    Component,
+    Prefab,
+    instantiate,
+    Node,
+    Vec3,
+    Label,
+} from "cc";
+import { PlayerController } from "./PlayerController";
 const { ccclass, property } = _decorator;
 
 /**
@@ -24,6 +33,26 @@ enum BlockType {
     BT_STONE = "Stone",
 }
 
+/**
+ * @description 游戏状态
+ */
+enum GameState {
+    /**
+     * @description 初始化
+     */
+    GS_INIT = "Init",
+
+    /**
+     * @description 游戏中
+     */
+    GS_PLAYING = "Playing",
+
+    /**
+     * @description 结束
+     */
+    GS_END = "End",
+}
+
 @ccclass("GameManager")
 export class GameManager extends Component {
     /**
@@ -38,9 +67,101 @@ export class GameManager extends Component {
     @property
     public roadLength = 50;
 
+    /**
+     * @description 路径
+     */
     private _road: BlockType[] = [];
 
-    start() {}
+    /**
+     * @description 开始的 UI
+     */
+    @property({ type: Node })
+    public startMenu: Node | null = null;
+
+    /**
+     * @description 角色控制器
+     */
+    @property({ type: PlayerController })
+    public playerCtrl: PlayerController | null = null;
+
+    /**
+     * @description 计步器
+     */
+    @property({ type: Label })
+    public stepsLabel: Label | null = null;
+
+    start() {
+        // 第一个初始化要在 start 里面调用
+        this.curState = GameState.GS_INIT;
+
+        // '?.' 是 Typescript 的可选链写法
+        // 相当于：
+        // if(this.playerCtrl != null) this.playerCtrl.node.on('JumpEnd', this.onPlayerJumpEnd, this);
+        // 可选链的写法更加的简洁
+        this.playerCtrl?.node.on("JumpEnd", this.onPlayerJumpEnd, this);
+    }
+
+    /**
+     * @description 初始化
+     * @returns void
+     */
+    init() {
+        // 激活主界面
+        if (this.startMenu) {
+            this.startMenu.active = true;
+        }
+
+        // 生成赛道
+        this.generateRoad();
+
+        // 将角色放回到初始点
+        if (this.playerCtrl) {
+            // 禁止接收用户操作人物移动指令
+            this.playerCtrl.setInputActive(false);
+
+            // 重置人物位置
+            this.playerCtrl.node.setPosition(Vec3.ZERO);
+
+            this.playerCtrl.reset();
+        }
+    }
+
+    /**
+     * @description 设置当前状态
+     * @param value 游戏状态
+     * @returns void
+     */
+    set curState(value: GameState) {
+        switch (value) {
+            case GameState.GS_INIT:
+                this.init();
+                break;
+            case GameState.GS_PLAYING:
+                // 隐藏 StartMenu
+                if (this.startMenu) {
+                    this.startMenu.active = false;
+                }
+
+                // 重设计步器的数值
+                if (this.stepsLabel) {
+                    // 将步数重置为0
+                    this.stepsLabel.string = "0";
+                }
+
+                // 设置 active 为 true 时会直接开始监听鼠标事件，此时鼠标抬起事件还未派发
+                // 会出现的现象就是，游戏开始的瞬间人物已经开始移动
+                // 因此，这里需要做延迟处理
+                // 直接设置 active 会直接开始监听鼠标事件，这里做了延迟处理
+                setTimeout(() => {
+                    if (this.playerCtrl) {
+                        this.playerCtrl.setInputActive(true);
+                    }
+                }, 0.1);
+                break;
+            case GameState.GS_END:
+                break;
+        }
+    }
 
     /**
      * @description 生成路径
@@ -105,5 +226,48 @@ export class GameManager extends Component {
         }
 
         return block;
+    }
+
+    /**
+     * @description 开始按钮点击
+     * @returns void
+     */
+    onStartButtonClicked() {
+        this.curState = GameState.GS_PLAYING;
+    }
+
+    /**
+     * @description 检查结果
+     * @param moveIndex 移动的索引
+     */
+    checkResult(moveIndex: number) {
+        if (moveIndex < this.roadLength) {
+            // 跳到了坑上
+            if (this._road[moveIndex] === BlockType.BT_NONE) {
+                //跳到了空方块上
+                this.curState = GameState.GS_END;
+            }
+        } else {
+            // 跳过了最大长度
+            this.curState = GameState.GS_END;
+        }
+    }
+
+    /**
+     * @description 角色跳跃结束事件
+     * @param moveIndex 移动的索引
+     * @returns void
+     */
+    onPlayerJumpEnd(moveIndex: number) {
+        // 检查 stepsLabel 是否存在，如果存在则更新其显示内容
+        if (this.stepsLabel) {
+            // 因为在最后一步可能出现步伐大的跳跃，但是此时无论跳跃是步伐大还是步伐小都不应该多增加分数
+            this.stepsLabel.string =
+                "" +
+                (moveIndex >= this.roadLength ? this.roadLength : moveIndex);
+        }
+
+        // 调用 checkResult 方法，传入当前移动的索引，检查游戏结果
+        this.checkResult(moveIndex);
     }
 }
