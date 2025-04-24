@@ -13,7 +13,8 @@ import {
     input,
     Input,
     EventMouse,
-    Animation,
+    // Animation,
+    SkeletalAnimation,
 } from "cc";
 const { ccclass, property } = _decorator;
 
@@ -22,8 +23,14 @@ export class PlayerController extends Component {
     /**
      * @description 身体动画
      */
-    @property({ type: Animation })
-    public BodyAnim: Animation | null = null;
+    // @property({ type: Animation })
+    // public BodyAnim: Animation | null = null;
+
+    /**
+     * @description 骨骼动画
+     */
+    @property({ type: SkeletalAnimation })
+    public CocosAnim: SkeletalAnimation | null = null;
 
     /**
      * @description 是否接收到跳跃指令
@@ -142,19 +149,25 @@ export class PlayerController extends Component {
         const clipName = step === 1 ? "oneStep" : "twoStep";
 
         // 检查当前对象的 BodyAnim 属性是否存在
+        /*
         if (!this.BodyAnim) {
             // 如果 BodyAnim 不存在，则直接返回，不执行后续代码
             return;
         }
+        */
+        if (!this.CocosAnim) {
+            // 如果 CocosAnim 不存在，则直接返回，不执行后续代码
+            return;
+        }
 
         // 获取动画状态
-        const state = this.BodyAnim.getState(clipName);
+        // const state = this.BodyAnim.getState(clipName);
 
         // 获取动画的时间
-        this._jumpTime = state.duration;
+        // this._jumpTime = state.duration;
 
         // 计算跳跃的速度，根据时间计算出速度
-        this._curJumpSpeed = this._jumpStep / this._jumpTime;
+        // this._curJumpSpeed = this._jumpStep / this._jumpTime;
 
         // 获取角色当前的位置
         this.node.getPosition(this._curPos);
@@ -163,6 +176,7 @@ export class PlayerController extends Component {
         Vec3.add(this._targetPos, this._curPos, new Vec3(this._jumpStep, 0, 0));
 
         // 播放动画
+        /*
         if (this.BodyAnim) {
             if (step === 1) {
                 // 调用 BodyAnim 的 play 方法，播放名为 "oneStep" 的动画
@@ -172,6 +186,14 @@ export class PlayerController extends Component {
                 // 调用 BodyAnim 的 play 方法，播放名为 "twoStep" 的动画
                 this.BodyAnim.play("twoStep");
             }
+        }
+        */
+        if (this.CocosAnim) {
+            // 跳跃动画时间比较长，这里加速播放
+            this.CocosAnim.getState("cocos_anim_jump").speed = 3.5;
+
+            // 播放跳跃动画
+            this.CocosAnim.play("cocos_anim_jump");
         }
 
         // 更新当前移动的索引
@@ -183,6 +205,11 @@ export class PlayerController extends Component {
      * @returns void
      */
     onOnceJumpEnd() {
+        // 跳跃结束，播放待机动画
+        if (this.CocosAnim) {
+            this.CocosAnim.play("cocos_anim_idle");
+        }
+
         // 触发跳跃结束事件
         this.node.emit("JumpEnd", this._curMoveIndex);
     }

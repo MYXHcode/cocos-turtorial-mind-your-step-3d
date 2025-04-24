@@ -12,8 +12,8 @@ import {
     Prefab,
     instantiate,
     Node,
-    Vec3,
     Label,
+    Vec3,
 } from "cc";
 import { PlayerController } from "./PlayerController";
 const { ccclass, property } = _decorator;
@@ -73,19 +73,19 @@ export class GameManager extends Component {
     private _road: BlockType[] = [];
 
     /**
-     * @description 开始的 UI
+     * @description 主界面根节点
      */
     @property({ type: Node })
     public startMenu: Node | null = null;
 
     /**
-     * @description 角色控制器
+     * @description 关联 Player 节点身上 PlayerController 组件
      */
     @property({ type: PlayerController })
     public playerCtrl: PlayerController | null = null;
 
     /**
-     * @description 计步器
+     * @description 关联步长文本组件
      */
     @property({ type: Label })
     public stepsLabel: Label | null = null;
@@ -122,6 +122,7 @@ export class GameManager extends Component {
             // 重置人物位置
             this.playerCtrl.node.setPosition(Vec3.ZERO);
 
+            // 重置已经移动的步长数据
             this.playerCtrl.reset();
         }
     }
@@ -193,14 +194,53 @@ export class GameManager extends Component {
         }
 
         // 根据赛道类型生成赛道
+        let linkedBlocks = 0;
+
+        // 遍历赛道
         for (let j = 0; j < this._road.length; j++) {
-            let block: Node = this.spawnBlockByType(this._road[j]);
-            // 判断是否生成了道路，因为 spawnBlockByType 有可能返回坑（值为 null）
-            if (block) {
-                this.node.addChild(block);
-                // 设置块的位置，每个块之间的间隔为 j
-                block.setPosition(j, -1.5, 0);
+            // 如果当前块是 BT_STONE，则增加链接块的数量
+            if (this._road[j] === BlockType.BT_STONE) {
+                // 增加链接块的数量
+                ++linkedBlocks;
             }
+
+            // 如果当前块是 BT_NONE，则生成块
+            if (this._road[j] === BlockType.BT_NONE) {
+                if (linkedBlocks > 0) {
+                    this.spawnBlockByCount(j - 1, linkedBlocks);
+                    linkedBlocks = 0;
+                }
+            }
+
+            // 如果当前块是最后一个块，则生成块
+            if (this._road.length == j + 1) {
+                if (linkedBlocks > 0) {
+                    this.spawnBlockByCount(j, linkedBlocks);
+                    linkedBlocks = 0;
+                }
+            }
+        }
+    }
+
+    /**
+     * @description 根据上一个块的位置和数量生成块
+     * @param lastPos 上一个块的位置
+     * @param count 数量
+     */
+    spawnBlockByCount(lastPos: number, count: number) {
+        // 根据上一个块的位置和数量生成块
+        let block: Node | null = this.spawnBlockByType(BlockType.BT_STONE);
+
+        // 判断是否生成了道路，因为 spawnBlockByType 有可能返回坑（值为 null）
+        if (block) {
+            // 设置块的位置，每个块之间的间隔为 j
+            this.node.addChild(block);
+
+            // 设置块的数量和位置
+            block?.setScale(count, 1, 1);
+
+            // 设置块的位置，每个块之间的间隔为 j
+            block?.setPosition(lastPos - (count - 1) * 0.5, -1.5, 0);
         }
     }
 
@@ -233,6 +273,7 @@ export class GameManager extends Component {
      * @returns void
      */
     onStartButtonClicked() {
+        // 点击主界面 Play 按钮，开始游戏
         this.curState = GameState.GS_PLAYING;
     }
 
