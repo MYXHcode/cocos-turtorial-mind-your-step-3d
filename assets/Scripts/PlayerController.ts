@@ -10,13 +10,31 @@ import {
     _decorator,
     Component,
     Vec3,
+    EventMouse,
     input,
     Input,
-    EventMouse,
     // Animation,
     SkeletalAnimation,
+    EventTouch,
+    Node,
+    sys,
 } from "cc";
 const { ccclass, property } = _decorator;
+
+/**
+ * @description 输入类型
+ */
+enum InputType {
+    /**
+     * @description 键鼠
+     */
+    KEYBOARD_AND_MOUSE = "KeyboardAndMouse",
+
+    /**
+     * @description 触摸
+     */
+    TOUCH = "Touch",
+}
 
 @ccclass("PlayerController")
 export class PlayerController extends Component {
@@ -77,8 +95,58 @@ export class PlayerController extends Component {
      */
     private _curMoveIndex: number = 0;
 
+    /**
+     * @description 输入类型
+     */
+    public inputType: InputType = null;
+
+    /**
+     * @description 左侧触摸点
+     */
+    @property(Node)
+    public leftTouch: Node = null;
+
+    /**
+     * @description 右侧触摸点
+     */
+    @property(Node)
+    public rightTouch: Node = null;
+
+    /**
+     * @description 开始
+     * @returns void
+     */
     start() {
-        // input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+        // 检测输入类型
+        this.inputType = this.checkInputType();
+    }
+
+    /**
+     * @description 检测输入类型
+     * @returns 输入类型
+     */
+    checkInputType(): InputType {
+        // 获取操作系统
+        const os = sys.os;
+
+        // 检测是否为移动端
+        const isMobile =
+            os === sys.OS.ANDROID ||
+            os === sys.OS.IOS ||
+            os === sys.OS.OHOS ||
+            os === sys.OS.OPENHARMONY;
+
+        // 检测是否为PC端
+        const isPC =
+            os === sys.OS.WINDOWS || os === sys.OS.LINUX || os === sys.OS.OSX;
+
+        if (isMobile) {
+            // 如果是移动端，返回触摸输入
+            return InputType.TOUCH;
+        } else if (isPC) {
+            // 如果是PC端，返回键鼠输入
+            return InputType.KEYBOARD_AND_MOUSE;
+        }
     }
 
     /**
@@ -87,13 +155,37 @@ export class PlayerController extends Component {
      * @param inputType 输入类型
      * @returns void
      */
-    setInputActive(active: boolean) {
+    setInputActive(active: boolean, inputType: InputType) {
         if (active) {
-            // 添加鼠标事件监听
-            input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+            if (inputType === InputType.KEYBOARD_AND_MOUSE) {
+                // 添加鼠标事件监听
+                input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+            } else if (inputType === InputType.TOUCH) {
+                // 添加触摸事件监听
+                this.leftTouch.on(
+                    Input.EventType.TOUCH_START,
+                    this.onTouchStart,
+                    this
+                );
+                this.rightTouch.on(
+                    Input.EventType.TOUCH_START,
+                    this.onTouchStart,
+                    this
+                );
+            }
         } else {
             // 移除事件监听
             input.off(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+            this.leftTouch.off(
+                Input.EventType.TOUCH_START,
+                this.onTouchStart,
+                this
+            );
+            this.rightTouch.off(
+                Input.EventType.TOUCH_START,
+                this.onTouchStart,
+                this
+            );
         }
     }
 
@@ -127,6 +219,21 @@ export class PlayerController extends Component {
     }
 
     /**
+     * @description 触摸开始事件
+     * @param event 触摸事件
+     */
+    onTouchStart(event: EventTouch) {
+        // 获取当前触摸的目标节点
+        const target = event.target as Node;
+
+        if (target?.name === "LeftTouch") {
+            this.jumpByStep(1);
+        } else if (target?.name === "RightTouch") {
+            this.jumpByStep(2);
+        }
+    }
+
+    /**
      * @description 跳跃
      * @param step 跳跃的步数 1 或者 2
      * @returns void
@@ -146,7 +253,7 @@ export class PlayerController extends Component {
         this._curJumpTime = 0;
 
         // 根据步数选择动画
-        const clipName = step === 1 ? "oneStep" : "twoStep";
+        // const clipName = step === 1 ? "oneStep" : "twoStep";
 
         // 检查当前对象的 BodyAnim 属性是否存在
         /*

@@ -117,7 +117,7 @@ export class GameManager extends Component {
         // 将角色放回到初始点
         if (this.playerCtrl) {
             // 禁止接收用户操作人物移动指令
-            this.playerCtrl.setInputActive(false);
+               this.playerCtrl.setInputActive(false, this.playerCtrl.inputType);
 
             // 重置人物位置
             this.playerCtrl.node.setPosition(Vec3.ZERO);
@@ -155,7 +155,10 @@ export class GameManager extends Component {
                 // 直接设置 active 会直接开始监听鼠标事件，这里做了延迟处理
                 setTimeout(() => {
                     if (this.playerCtrl) {
-                        this.playerCtrl.setInputActive(true);
+                        this.playerCtrl.setInputActive(
+                            true,
+                            this.playerCtrl.inputType
+                        );
                     }
                 }, 0.1);
                 break;
